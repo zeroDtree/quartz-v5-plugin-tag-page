@@ -14,6 +14,7 @@ import { tagPageSlug } from "../util/tags";
 import { getAllSegmentPrefixes, resolveRelative, simplifySlug } from "../util/path";
 import type { FullSlug } from "../util/path";
 import style from "./styles/listPage.scss";
+import tagIndexStyle from "./styles/tagIndex.scss";
 
 interface TagContentOptions {
   sort?: SortFn;
@@ -81,6 +82,23 @@ export default ((opts?: Partial<TagContentOptions>) => {
         tagItemMap.set(t, allPagesWithTag(t));
       }
 
+      // Compact index: one chip per tag, most-used first, ties broken by name. A hand-written
+      // tag page is linked where it is: at `tags/<tag>` it replaces the virtual
+      // `tags/<tag>/index`, which is then never emitted (the docs' `tags/plugin`).
+      const tagEntries = tags
+        .map((name) => {
+          const contentPage = (allFiles as PageFileData[]).find(
+            (file) => file.slug === `tags/${name}` || file.slug === `tags/${name}/index`,
+          );
+          const tagListingPage = (contentPage?.slug ?? tagPageSlug(name, tags)) as FullSlug;
+          return {
+            name,
+            count: tagItemMap.get(name)!.length,
+            href: resolveRelative(slug as FullSlug, tagListingPage),
+          };
+        })
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
       return (
         <div class="popover-hint">
           <article class={classes}>
@@ -89,62 +107,16 @@ export default ((opts?: Partial<TagContentOptions>) => {
             </div>
           </article>
           <p>{i18n(locale).pages.tagContent.totalTags({ count: tags.length })}</p>
-          <div>
-            {tags.map((t) => {
-              const pages = tagItemMap.get(t)!;
-              const listProps = {
-                ...props,
-                allFiles: pages,
-              };
-              const pageListContent = PageList({
-                ...listProps,
-                limit: options.numPages,
-                sort: options?.sort,
-              }) as unknown as ComponentChildren;
-
-              const contentPage = (allFiles as PageFileData[]).find(
-                (file) => file.slug === `tags/${t}` || file.slug === `tags/${t}/index`,
-              );
-
-              // Virtual pages have htmlAst pre-rendered by the dispatcher (contains the full
-              // PageList), so only use htmlAst from real user-authored tag pages (have filePath).
-              const root = contentPage?.filePath ? contentPage?.htmlAst : undefined;
-              const tagDesc =
-                !root || root.children.length === 0 ? contentPage?.description : htmlToJsx(root);
-
-              // A hand-written tag page is linked where it is: at `tags/<tag>` it replaces the
-              // virtual `tags/<tag>/index`, which is then never emitted (the docs' `tags/plugin`).
-              const tagListingPage = (contentPage?.slug ?? tagPageSlug(t, tags)) as FullSlug;
-              const href = resolveRelative(slug as FullSlug, tagListingPage);
-
-              return (
-                <div>
-                  <h2>
-                    <a class="internal tag-link" href={href}>
-                      {t}
-                    </a>
-                  </h2>
-                  {tagDesc && <p>{tagDesc}</p>}
-                  <div class="page-listing">
-                    <p>
-                      {i18n(locale).pages.tagContent.itemsUnderTag({ count: pages.length })}
-                      {pages.length > options.numPages && (
-                        <>
-                          {" "}
-                          <span>
-                            {i18n(locale).pages.tagContent.showingFirst({
-                              count: options.numPages,
-                            })}
-                          </span>
-                        </>
-                      )}
-                    </p>
-                    {pageListContent}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <ul class="tag-index">
+            {tagEntries.map(({ name, count, href }) => (
+              <li>
+                <a class="internal tag-link" href={href}>
+                  {name}
+                  <span class="tag-count">{count}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       );
     } else {
@@ -172,6 +144,6 @@ export default ((opts?: Partial<TagContentOptions>) => {
     }
   };
 
-  TagContent.css = concatenateResources(style, PageList.css);
+  TagContent.css = concatenateResources(style, PageList.css, tagIndexStyle);
   return TagContent;
 }) satisfies QuartzComponentConstructor;

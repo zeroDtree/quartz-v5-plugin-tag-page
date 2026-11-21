@@ -1,0 +1,27 @@
+ul.tag-index {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
+
+  > li {
+    margin: 0;
+  }
+
+  a.tag-link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 8px;
+    background-color: var(--highlight);
+  }
+
+  .tag-count {
+    font-size: 0.8em;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.55;
+  }
+}
